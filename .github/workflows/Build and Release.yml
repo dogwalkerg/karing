@@ -5,22 +5,11 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, master]
-  workflow_dispatch:  # 允许手动触发
-
-env:
-  FLUTTER_VERSION: '3.31.0'  # 使用支持 Dart 3.8.0+ 的 Flutter 版本
+  workflow_dispatch:
 
 jobs:
-  build-web:
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - platform: web
-            build-command: build web --release
-            artifact-name: karing-web
-            artifact-path: build/web/
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -28,45 +17,51 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
+        flutter-version: '3.22.0'  # 使用可用的稳定版本
 
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build ${{ matrix.platform }}
-      run: flutter ${{ matrix.build-command }}
+    - name: Analyze code
+      run: flutter analyze
 
-    - name: Upload ${{ matrix.platform }} artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-path }}
-        retention-days: 30
+    - name: Run tests
+      run: flutter test
 
-  build-android:
+  build-web:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - platform: android
-            build-command: build apk --release
-            artifact-name: karing-android
-            artifact-path: build/app/outputs/flutter-apk/app-release.apk
-          - platform: android-appbundle
-            build-command: build appbundle --release
-            artifact-name: karing-appbundle
-            artifact-path: build/app/outputs/bundle/release/app-release.aab
-
+    needs: test
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Web
+      run: flutter build web --release
+
+    - name: Upload Web artifact
+      uses: actions/upload-artifact@v4
       with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
+        name: karing-web
+        path: build/web/
+        retention-days: 30
+
+  build-android:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
 
     - name: Install dependencies
       run: flutter pub get
@@ -77,68 +72,55 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build ${{ matrix.platform }}
-      run: flutter ${{ matrix.build-command }}
+    - name: Build Android APK
+      run: flutter build apk --release
 
-    - name: Upload ${{ matrix.platform }} artifact
+    - name: Build Android AppBundle
+      run: flutter build appbundle --release
+
+    - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-path }}
+        name: karing-android
+        path: |
+          build/app/outputs/flutter-apk/app-release.apk
+          build/app/outputs/bundle/release/app-release.aab
         retention-days: 30
 
   build-windows:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        include:
-          - platform: windows
-            build-command: build windows --release
-            artifact-name: karing-windows
-            artifact-path: build/windows/runner/Release/
-
+    needs: test
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
 
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build ${{ matrix.platform }}
-      run: flutter ${{ matrix.build-command }}
+    - name: Build Windows
+      run: flutter build windows --release
 
-    - name: Upload ${{ matrix.platform }} artifact
+    - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-path }}
+        name: karing-windows
+        path: build/windows/runner/Release/
         retention-days: 30
 
   build-linux:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - platform: linux
-            build-command: build linux --release
-            artifact-name: karing-linux
-            artifact-path: build/linux/
-
+    needs: test
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
 
     - name: Install dependencies
       run: flutter pub get
@@ -148,60 +130,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libgtk-3-dev ninja-build
 
-    - name: Build ${{ matrix.platform }}
-      run: flutter ${{ matrix.build-command }}
+    - name: Build Linux
+      run: flutter build linux --release
 
-    - name: Upload ${{ matrix.platform }} artifact
+    - name: Upload Linux artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-path }}
-        retention-days: 30
-
-  build-macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - platform: macos
-            build-command: build macos --release
-            artifact-name: karing-macos
-            artifact-path: build/macos/Build/Products/Release/
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
-
-    - name: Install dependencies
-      run: flutter pub get
-
-    - name: Build ${{ matrix.platform }}
-      run: flutter ${{ matrix.build-command }}
-
-    - name: Upload ${{ matrix.platform }} artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-path }}
+        name: karing-linux
+        path: build/linux/
         retention-days: 30
 
   create-release:
     runs-on: ubuntu-latest
-    needs: [build-web, build-android, build-windows, build-linux, build-macos]
+    needs: [build-web, build-android, build-windows, build-linux]
     if: startsWith(github.ref, 'refs/tags/')
     
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
-
-    - name: List downloaded artifacts
-      run: ls -R
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -209,32 +155,10 @@ jobs:
         files: |
           karing-web/**/*
           karing-android/app-release.apk
-          karing-appbundle/app-release.aab
+          karing-android/app-release.aab
           karing-windows/**/*
           karing-linux/**/*
-          karing-macos/**/*
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
-
-    - name: Install dependencies
-      run: flutter pub get
-
-    - name: Analyze code
-      run: flutter analyze
-
-    - name: Run tests
-      run: flutter test
