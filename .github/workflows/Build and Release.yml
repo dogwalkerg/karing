@@ -1,4 +1,4 @@
-name: Build Karing
+name: Build Karing Step by Step
 
 on:
   push:
@@ -6,12 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
+  build-android-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -19,34 +17,14 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
 
-    - name: Show Flutter info
-      run: flutter doctor -v
-
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build for platform
-      run: |
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          echo "Building Android and Linux"
-          flutter build apk --release --split-per-abi
-          flutter build appbundle --release
-          flutter build linux --release
-        elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "Building Windows"
-          flutter build windows --release
-        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-          echo "Building macOS"
-          flutter build macos --release
-        fi
+    - name: Build Android
+      run: flutter build apk --release --split-per-abi
 
-    - name: Upload artifacts
+    - name: Upload Android
       uses: actions/upload-artifact@v4
       with:
-        name: karing-${{ matrix.os }}
-        path: |
-          build/app/outputs/
-          build/linux/
-          build/windows/
-          build/macos/
-        retention-days: 30
+        name: android-apks
+        path: build/app/outputs/flutter-apk/
